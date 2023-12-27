@@ -3,6 +3,7 @@ __version__ = "1.1.1"
 
 import getpass
 import logging
+import os
 import shutil
 import sys
 import zipfile
@@ -128,11 +129,20 @@ class ZipHandler:
     def fix_it(self):
         """convert filename from nonUTF-8 to UTF-8"""
         with tempfile.TemporaryDirectory() as tmp_folder:
+            new_name = self.zip_path.parent / (self.zip_path.stem + '_fixed')
+            if os.path.exists(str(new_name) + '.zip'):
+                logger.error("文件 " + str(new_name) + ".zip 已存在！")
+                return
+            
+            logger.info("正在修复 " + str(self.zip_path.stem) + ".zip ...")
+ 
             tmp_folder = Path(tmp_folder)
             self.extract_all(tmp_folder)
-            new_name = self.zip_path.parent / (self.zip_path.stem + '_fixed')
+            
             folder_to_zip = tmp_folder      # /self.zip_path.stem
             zip_it(new_name, folder_to_zip)
+            
+            logger.info(str(new_name) + ".zip 好了!!!")
 
         if self.is_encrypted():
             logger.warning(f" !!! Fixed zipfile is NOT password protected!")
@@ -206,10 +216,6 @@ def entry_point():
     parser.add_argument('zipfile', help='path to zip file')
     parser.add_argument('destination', nargs='?', default="",
                         help='folder path to extract zip file')
-    parser.add_argument('--extract', '-x', action='store_true',
-                        help='extract the zipfile to specified destination')
-    parser.add_argument('--fix', '-f', action='store_true',
-                        help='create a new zip file with UTF-8 file names')
     parser.add_argument('--encoding', '-enc',
                         help='zip file used encoding: shift-jis, cp932...')
     parser.add_argument('--password', '-pwd', default='',
@@ -217,19 +223,10 @@ def entry_point():
 
     args = parser.parse_args()
     try:
-        if args.extract:
-            zhdl = ZipHandler(path=args.zipfile, encoding=args.encoding,
+        zhdl = ZipHandler(path=args.zipfile, encoding=args.encoding,
                               password=args.password.encode('utf8'),
                               extract_path=args.destination)
-            zhdl.extract_all()
-        elif args.fix:
-            zhdl = ZipHandler(path=args.zipfile, encoding=args.encoding,
-                              password=args.password.encode('utf8'),
-                              extract_path=args.destination)
-            zhdl.fix_it()
-        else:
-            zhdl = ZipHandler(path=args.zipfile, encoding=args.encoding)
-            print(zhdl)
+        zhdl.fix_it()
     # except Exception as e:
     #     logger.error(e)
     finally:
